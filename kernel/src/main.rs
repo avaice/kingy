@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod font;
+mod glyph;
 mod graphics;
 
 use core::panic::PanicInfo;
@@ -23,6 +25,8 @@ pub extern "C" fn _start() -> ! {
 
     graphics::clear(3);
     graphics::rect(160, 120, 320, 240, 1);
+
+    font::draw_text(170, 130, b"Hello, Kingy!", 2);
 
     halt()
 }
