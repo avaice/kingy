@@ -1,0 +1,10 @@
+[package]
+name = "kernel"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[profile.release]
+panic = "abort" # パニックしたらその場で止まる
+opt-level = "z" # 速度よりサイズ圧縮を優先

@@ -1,12 +1,18 @@
 #!/bin/bash
 set -e
 
+OBJCOPY="$(brew --prefix llvm)/bin/llvm-objcopy"
+
+cd kernel
+cargo build --release
+"$OBJCOPY" -O binary target/x86_64-unknown-none/release/kernel ../build/kernel.bin
+cd ..
+
 cd "$(dirname "$0")"
 mkdir -p build
 
 nasm -f bin bootloader/boot.asm -o build/boot.bin
 nasm -f bin bootloader/stage2.asm -o build/stage2.bin
-nasm -f bin bootloader/kernel_test.asm -o build/kernel.bin
 
 dd if=/dev/zero of=build/disk.img bs=512 count=2880 2>/dev/null            # 1.44MBの空フロッピー
 dd if=build/boot.bin of=build/disk.img bs=512 seek=0 conv=notrunc 2>/dev/null   # セクタ1
