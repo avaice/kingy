@@ -19,4 +19,4 @@ dd if=build/boot.bin of=build/disk.img bs=512 seek=0 conv=notrunc 2>/dev/null   
 dd if=build/stage2.bin of=build/disk.img bs=512 seek=1 conv=notrunc 2>/dev/null # セクタ2
 dd if=build/kernel.bin of=build/disk.img bs=512 seek=2 conv=notrunc 2>/dev/null # セクタ3~
 
-qemu-system-x86_64 -drive file=build/disk.img,format=raw,if=floppy -boot order=a -display cocoa,zoom-to-fit=on -monitor stdio
+qemu-system-x86_64 -drive file=build/disk.img,format=raw,if=floppy -boot order=a -display cocoa,zoom-to-fit=on,full-screen=on -monitor stdio
