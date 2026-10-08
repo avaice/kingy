@@ -27,6 +27,7 @@ pub extern "C" fn _start() -> ! {
     graphics::rect(160, 120, 320, 240, 1);
 
     font::draw_text(170, 130, b"Hello, Kingy!", 2);
+    font::draw_text(170, 130 + font::LINE * 1, b"0123456789~!?", 15);
 
     halt()
 }

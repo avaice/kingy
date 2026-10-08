@@ -1,8 +1,8 @@
 use crate::{glyph::glyph, graphics};
 
-pub const SCALE: usize = 2; // 文字のサイズ
+pub const SCALE: usize = 3; // 文字のサイズ
 pub const SPACE: usize = 1; // 文字間のスペース
-// pub const HEIGHT: usize = 7 * SCALE; // 文字の高さ
+pub const LINE: usize = 10 * SCALE; // 文字の高さ
 
 pub fn draw_char(x: usize, y: usize, c: u8, color: u8) {
     let rows = glyph(c);
