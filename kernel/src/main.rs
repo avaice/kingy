@@ -4,6 +4,7 @@
 mod font;
 mod glyph;
 mod graphics;
+mod io;
 
 use core::panic::PanicInfo;
 
@@ -28,6 +29,19 @@ pub extern "C" fn _start() -> ! {
 
     font::draw_text(170, 130, b"Hello, Kingy!", 2);
     font::draw_text(170, 130 + font::LINE * 1, b"0123456789~!?", 15);
+
+    loop {
+        // キーを押したら1になる
+        unsafe {
+            graphics::rect(160, 400, 32, 32, 1);
+            let flag = io::inb(0x64);
+            if flag & 1 == 1 {
+                font::draw_text(168, 408, b"1", 15);
+            } else {
+                font::draw_text(168, 408, b"0", 15);
+            }
+        }
+    }
 
     halt()
 }
