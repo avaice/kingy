@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod graphics;
+
 use core::panic::PanicInfo;
 
 unsafe extern "C" {
@@ -10,9 +12,6 @@ unsafe extern "C" {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    let fb = unsafe { core::ptr::read_volatile(0x600 as *const u32) };
-    let fb = fb as usize;
-
     // bss(初期値0の変数) の値を初期化する
     unsafe {
         // ポインタを取る
@@ -22,12 +21,8 @@ pub extern "C" fn _start() -> ! {
         core::ptr::write_bytes(start, 0, end - start as usize);
     }
 
-    // w=640px * h=16px
-    for i in 0..640 * 16 {
-        unsafe {
-            core::ptr::write_volatile((fb + i) as *mut u8, 1);
-        }
-    }
+    graphics::clear(3);
+    graphics::rect(160, 120, 320, 240, 1);
 
     halt()
 }
