@@ -5,8 +5,11 @@ mod font;
 mod glyph;
 mod graphics;
 mod io;
+mod keyboard;
+mod keymap;
 
 use core::panic::PanicInfo;
+use keyboard::{Key, Keyboard};
 
 unsafe extern "C" {
     static __bss_start: u8;
@@ -30,27 +33,45 @@ pub extern "C" fn _start() -> ! {
     font::draw_text(170, 130, b"Hello, Kingy!", 2);
     font::draw_text(170, 130 + font::LINE * 1, b"0123456789~!?", 15);
 
+    let mut keyboard = Keyboard::new();
+    let mut x = 170;
+    let mut y = 200;
     loop {
-        // キーを押したら1になる
-        unsafe {
-            graphics::rect(160, 400, 32, 32, 1);
-            let flag = io::inb(0x64);
-            if flag & 1 == 1 {
-                font::draw_text(168, 408, b"1", 15);
-            } else {
-                font::draw_text(168, 408, b"0", 15);
+        match keyboard.poll() {
+            Some(Key::Character(c)) => {
+                if x + font::LINE / 2 > 480 {
+                    x = 170;
+                    y += font::LINE;
+                }
+                font::draw_char(x, y, c, 15);
+                x += font::LINE / 2;
             }
+            Some(Key::Enter) => {
+                x = 170;
+                y += font::LINE;
+            }
+            Some(Key::Backspace) => {
+                if x <= 170 {
+                    y = (y - font::LINE).max(200);
+                    if y != 200 {
+                        x = 480 - font::LINE;
+                    }
+                } else {
+                    x -= font::LINE / 2;
+                }
+
+                graphics::rect(x, y, font::LINE, font::LINE, 1);
+            }
+            _ => {}
         }
     }
-
-    halt()
 }
 
-fn halt() -> ! {
-    loop {
-        unsafe { core::arch::asm!("hlt") }
-    }
-}
+// fn halt() -> ! {
+//     loop {
+//         unsafe { core::arch::asm!("hlt") }
+//     }
+// }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
