@@ -6,10 +6,11 @@
 
 ## requires
 ```bash
-brew install nasm qemu llvm
+brew install nasm qemu
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup target add x86_64-unknown-none
+rustup component add llvm-tools
 ```
 
 ## build & run

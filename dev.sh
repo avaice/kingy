@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-OBJCOPY="$(brew --prefix llvm)/bin/llvm-objcopy"
+OBJCOPY="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/host: //p')/bin/rust-objcopy"
 
 cd kernel
 cargo build --release
