@@ -25,7 +25,7 @@ pub mod color {
 }
 
 // VRAMのアドレスを返す
-fn vram() -> usize {
+pub fn vram() -> usize {
     unsafe { core::ptr::read_volatile(FB_ADDR as *const u32) as usize }
 }
 

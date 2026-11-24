@@ -12,6 +12,7 @@ mod idt;
 mod pic;
 mod timer;
 mod memory;
+mod paging;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -32,7 +33,7 @@ pub extern "C" fn _start() -> ! {
         core::ptr::write_bytes(start, 0, end - start as usize);
     }
 
-
+    paging::init();
     idt::init();
     pic::init();
     timer::init();
