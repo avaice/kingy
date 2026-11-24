@@ -1,4 +1,4 @@
-use crate::{font, graphics, paging, system_ui, user};
+use crate::{font, graphics, keyboard, paging, pic, system_ui, user};
 
 // アプリからの「int 0x80」の入口
 #[unsafe(naked)]
@@ -26,7 +26,7 @@ const EXIT: u64 = u64::MAX - 1;
 const ERROR: u64 = u64::MAX;
 const USER_END: u64 = 0x0000_8000_0000_0000; // アプリが使える番地の終わり
 
-const TEXT_TOP: usize = 365;
+const TEXT_TOP: usize = 50;
 static mut TEXT_Y: usize = TEXT_TOP;
 
 extern "C" fn syscall_handler(number: u64, arg1: u64, arg2: u64) -> u64 {
@@ -60,11 +60,29 @@ pub fn print(text: &[u8], color: u8) {
 
 // 終了コードを「exit 42」の形で1行書く
 pub fn print_exit(code: u64) {
-    unsafe {
-        font::draw_text(10, TEXT_Y, b"exit", graphics::color::YELLOW);
-        font::draw_number(10 + 16 * 5, TEXT_Y, code, graphics::color::YELLOW);
-        TEXT_Y += font::LINE;
+        font::draw_text(10, 420, b"exit", graphics::color::YELLOW);
+        font::draw_number(10 + 16 * 5, 420, code, graphics::color::YELLOW);
+}
+
+pub fn crushed() {
+    pic::mute_timer();
+    graphics::clear(graphics::color::RED);
+    font::draw_text(10, 420, b"Application Crushed", graphics::color::WHITE);
+    font::draw_text(10, 440, b"Press Esc key to continue", graphics::color::WHITE);
+    let mut keyboard = keyboard::Keyboard::new();
+    loop {
+        let Some(code) = keyboard::pop() else {
+            unsafe { core::arch::asm!("hlt") };
+            continue;
+        };
+        match keyboard.process(code) {
+            Some(keyboard::Key::Escape) => {
+                break;
+            }
+            _ => continue,
+        }
     }
+    pic::unmute_timer();
 }
 
 // 文字を出す場所を消して、一番上に戻る

@@ -1,4 +1,5 @@
 use crate::io::outb;
+use crate::io::inb;
 
 const MASTER_COMMAND: u16 = 0x20;
 const MASTER_DATA: u16 = 0x21;
@@ -26,4 +27,11 @@ pub fn init() {
 
 pub fn end_of_interrupt() {
     unsafe { outb(MASTER_COMMAND, 0x20) };
+}
+
+pub fn mute_timer() {
+    unsafe { outb(MASTER_DATA, inb(MASTER_DATA) | 0b0000_0001) };
+}
+pub fn unmute_timer() {
+    unsafe { outb(MASTER_DATA, inb(MASTER_DATA) & !0b0000_0001) };
 }
