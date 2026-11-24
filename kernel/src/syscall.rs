@@ -145,9 +145,10 @@ pub fn print_exit(code: u64) {
         font::draw_number(10 + 16 * 5, 420, code, graphics::color::YELLOW);
 }
 
-pub fn crushed() {
+pub fn crushed(code: u64) {
     pic::mute_timer();
     graphics::clear(graphics::color::RED);
+    font::draw_number(10, 10, code, graphics::color::WHITE);
     font::draw_text(10, 420, b"Application Crushed", graphics::color::WHITE);
     font::draw_text(10, 440, b"Press Esc key to continue", graphics::color::WHITE);
     let mut keyboard = keyboard::Keyboard::new();

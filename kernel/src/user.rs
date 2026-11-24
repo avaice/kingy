@@ -6,9 +6,11 @@ const STACK_SIZE: usize = 0x4000;                       // スタックの大き
 
 static HELLO: &[u8] = include_bytes!("../../build/hello.bin");
 static COUNT: &[u8] = include_bytes!("../../build/count.bin");
+static TTT: &[u8] = include_bytes!("../../build/ttt.bin");
 
 // エラーで止められたときの終了コード
 pub const KILLED: u64 = u64::MAX;
+pub const PANIC: u64 = 101;
 
 static mut APP_SPACE: usize = 0;  // 動いているアプリのアドレス空間
 static mut KERNEL_RSP: usize = 0; // アプリを起動したときのカーネルのスタック位置
@@ -38,6 +40,9 @@ pub fn count() -> u64 {
     run(COUNT)
 }
 
+pub fn ttt() -> u64 {
+    run(TTT)
+}
 pub fn bad() -> u64 {
     let start = &raw const bad_start as usize;
     let end = &raw const bad_end as usize;

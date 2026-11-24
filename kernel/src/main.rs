@@ -85,6 +85,7 @@ pub extern "C" fn _start() -> ! {
             Some(Key::F3) => start(user::hello), // Rust のアプリ
             Some(Key::F4) => start(user::bad),   // カーネルを覗こうとするアプリ
             Some(Key::F5) => start(user::count), // 3, 2, 1 と数えて終わる Rust のアプリ
+            Some(Key::F6) => start(user::ttt), // 三目並べ
             _ => {}
         }
     }
@@ -100,8 +101,8 @@ pub extern "C" fn _start() -> ! {
 fn start(app: fn() -> u64) {
     syscall::clear();
     let code = app();
-    if code == user::KILLED {
-        syscall::crushed();
+    if code == user::KILLED || code == user::PANIC {
+        syscall::crushed(code);
         system_ui::draw_init_screen();
     } else {
         system_ui::draw_init_screen();
@@ -112,5 +113,12 @@ fn start(app: fn() -> u64) {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    graphics::clear(0);
+    
+    graphics::rect(160, 160, 320, font::LINE + 20, graphics::color::YELLOW);
+    font::draw_text(180, 170, b"Kingy has PANIC!", graphics::color::BLACK);
+    
+    loop {
+        unsafe { core::arch::asm!("cli", "hlt") }
+    }
 }

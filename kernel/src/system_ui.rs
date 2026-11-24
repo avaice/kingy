@@ -12,6 +12,7 @@ pub fn draw_init_screen() {
     font::draw_text(10, 60 + font::LINE, b"Hello, World: F3", graphics::color::WHITE);
     font::draw_text(10, 60 + font::LINE * 2, b"Bad App: F4", graphics::color::WHITE);
     font::draw_text(10, 60 + font::LINE * 3, b"Count Down: F5", graphics::color::WHITE);
+    font::draw_text(10, 60 + font::LINE * 4, b"Tic Tac Toe: F6", graphics::color::WHITE);
 
     let kbmp = kbmp::read_kbmp(KINGY_BMP);
     kbmp::draw_kbmp(kbmp, 320, 250, 6,true);

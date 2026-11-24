@@ -1,3 +1,4 @@
 /build
 /kernel/target
 /apps/target
+.DS_Store
