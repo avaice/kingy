@@ -8,6 +8,8 @@ mod io;
 mod keyboard;
 mod keymap;
 mod idt;
+mod pic;
+mod timer;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -30,6 +32,9 @@ pub extern "C" fn _start() -> ! {
 
     
     idt::init();
+    pic::init();
+    timer::init();
+    unsafe { core::arch::asm!("sti") }; // 割り込みを受け付ける
 
     graphics::clear(3);
     graphics::rect(160, 120, 320, 240, 1);

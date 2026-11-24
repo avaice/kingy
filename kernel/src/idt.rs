@@ -26,7 +26,7 @@ impl Entry {
                 offset_mid: 0, offset_high: 0, reserved: 0 }
     }
 
-    fn new(handler: extern "C" fn() -> !) -> Self {
+    fn new(handler: *const ()) -> Self {
         let addr = handler as usize; // 関数が置かれているメモリの番地
         Entry {
             offset_low: addr as u16,
@@ -62,11 +62,12 @@ fn show_error(message: &[u8]) -> ! {
 pub fn init() {
     unsafe {
         let idt = &raw mut IDT;
-        (*idt)[0] = Entry::new(divide_error);
-        (*idt)[6] = Entry::new(invalid_opcode);
-        (*idt)[8] = Entry::new(double_fault);
-        (*idt)[13] = Entry::new(general_protection);
-        (*idt)[14] = Entry::new(page_fault);
+        (*idt)[0] = Entry::new(divide_error as *const ());
+        (*idt)[6] = Entry::new(invalid_opcode as *const ());
+        (*idt)[8] = Entry::new(double_fault as *const ());
+        (*idt)[13] = Entry::new(general_protection as *const ());
+        (*idt)[14] = Entry::new(page_fault as *const ());
+        (*idt)[32] = Entry::new(crate::timer::timer_entry as *const ());
 
         let pointer = IdtPointer {
             limit: (core::mem::size_of::<[Entry; 256]>() - 1) as u16,
