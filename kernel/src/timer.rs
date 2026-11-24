@@ -35,7 +35,7 @@ extern "C" fn timer_handler() {
         TICKS
     };
 
-    if ticks % 1000 == 0 {
+    if ticks % 200 == 0 {
         memory::draw_usage();
     }
     pic::end_of_interrupt();
