@@ -3,7 +3,7 @@
 use core::panic::PanicInfo;
 
 const WRITE: u64 = 1;
-const EXIT: u64 = 2;
+const EXIT: u64 = u64::MAX - 1;
 
 // 画面に文字を出す。成功したら 0、失敗したら u64::MAX
 pub fn write(text: &[u8]) -> u64 {
@@ -28,6 +28,9 @@ pub fn exit(code: u64) -> ! {
             in("rdi") code,
             options(noreturn), // カーネルから戻ってこない
         );
+        
+        // カーネルが exit を受け付けずに戻ってきたら、自暴自棄になってエラーを起こす
+        core::arch::asm!("ud2", options(noreturn));
     }
 }
 
