@@ -7,6 +7,7 @@ mod graphics;
 mod io;
 mod keyboard;
 mod keymap;
+mod exception;
 mod idt;
 mod pic;
 mod timer;
