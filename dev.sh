@@ -3,13 +3,13 @@ set -e
 
 OBJCOPY="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/host: //p')/bin/rust-objcopy"
 
+cd "$(dirname "$0")"
+mkdir -p build
+
 cd kernel
 cargo build --release
 "$OBJCOPY" -O binary target/x86_64-unknown-none/release/kernel ../build/kernel.bin
 cd ..
-
-cd "$(dirname "$0")"
-mkdir -p build
 
 nasm -f bin bootloader/boot.asm -o build/boot.bin
 nasm -f bin bootloader/stage2.asm -o build/stage2.bin
