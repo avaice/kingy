@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+mod gdt;
 mod font;
 mod glyph;
 mod graphics;
@@ -9,10 +10,12 @@ mod keyboard;
 mod keymap;
 mod exception;
 mod idt;
+mod syscall;
 mod pic;
 mod timer;
 mod memory;
 mod paging;
+mod user;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -33,6 +36,7 @@ pub extern "C" fn _start() -> ! {
         core::ptr::write_bytes(start, 0, end - start as usize);
     }
 
+    gdt::init();
     paging::init();
     idt::init();
     pic::init();
@@ -107,7 +111,9 @@ pub extern "C" fn _start() -> ! {
                 }
                 addr = Some(addr.unwrap() - memory::PAGE_SIZE);
                 memory::draw_usage(490, 120);
-            }
+            },
+            Some(Key::F3) => user::hello(), // 正しいアプリ
+            Some(Key::F4) => user::bad(),   // カーネルを覗こうとするアプリ
             _ => {}
         }
     }

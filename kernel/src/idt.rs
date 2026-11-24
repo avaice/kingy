@@ -4,7 +4,17 @@ struct Entry {
     offset_low: u16,  // 関数アドレスの下位16bit
     selector: u16,    // どのモードで実行するか
     ist: u8,          // スタックが壊れている時にトリプルフォルトにならないように別のスタックを使うことができる
-    attributes: u8,   // 「この行は有効」などの設定が8bitぶんある
+
+    //  設定項目
+    //   bit 7    : P    … 1 = この行は有効
+    //   bit 6〜5 : DPL  … int 命令で呼べる Ring（00 = カーネルだけ、11 = アプリからもOK）
+    //   bit 4    : 0    … 常に0
+    //   bit 3〜0 : 種類 … 1110 = 処理中は割り込みを止める
+    //                      1111 = 止めない
+    //   例: 0x8E = 1 00 0 1110 … 有効・カーネルだけ・処理中は割り込みを止める
+    //       0xEE = 1 11 0 1110 … 有効・アプリからもOK・処理中は割り込みを止める
+    attributes: u8,
+
     offset_mid: u16,  // 関数アドレスの真ん中16bit
     offset_high: u32, // 関数アドレスの上位32bit
     reserved: u32,    // 使わない（0）
@@ -28,13 +38,19 @@ impl Entry {
         let addr = handler as usize; // 関数が置かれているメモリの番地
         Entry {
             offset_low: addr as u16,
-            selector: 0x18, // stage2.asm の `jmp 0x18:long_mode` と同じ値（64bitモードのコード）
+            selector: crate::gdt::KERNEL_CODE, // カーネルのコード
             ist: 0,
-            attributes: 0x8E, // 「有効・カーネル専用・処理中は他の割り込みを止める」
+            attributes: 0x8E, // 有効・カーネル専用・処理中は他の割り込みを止める
             offset_mid: (addr >> 16) as u16,
             offset_high: (addr >> 32) as u32,
             reserved: 0,
         }
+    }
+
+    // Ring3からも呼べるようにする
+    fn user_callable(mut self) -> Self {
+        self.attributes = 0xEE; // 有効・Ring3からOK・処理中は割り込みを止める
+        self
     }
 }
 
@@ -50,6 +66,7 @@ pub fn init() {
         (*idt)[14] = Entry::new(crate::exception::page_fault as *const ());
         (*idt)[32] = Entry::new(crate::timer::timer_entry as *const ());
         (*idt)[33] = Entry::new(crate::keyboard::keyboard_entry as *const ());
+        (*idt)[0x80] = Entry::new(crate::syscall::syscall_entry as *const ()).user_callable();
 
         let pointer = IdtPointer {
             limit: (core::mem::size_of::<[Entry; 256]>() - 1) as u16,
