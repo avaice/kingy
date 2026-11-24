@@ -16,6 +16,7 @@ mod timer;
 mod memory;
 mod paging;
 mod user;
+mod system_ui;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -43,48 +44,17 @@ pub extern "C" fn _start() -> ! {
     timer::init();
     unsafe { core::arch::asm!("sti") }; // 割り込みを受け付ける
 
-    graphics::clear(3);
-    graphics::rect(160, 120, 320, 240, 1);
-
-    font::draw_text(170, 130, b"Hello, Kingy!", 2);
-    font::draw_text(170, 130 + font::LINE * 1, b"0123456789~!?", 15);
-
+    system_ui::draw_init_screen();
+ 
     let mut addr = None;
-    memory::draw_usage(490, 120);
 
     let mut keyboard = Keyboard::new();
-    let mut x = 170;
-    let mut y = 200;
     loop {
         let Some(code) = keyboard::pop() else {
             unsafe { core::arch::asm!("hlt") };
             continue;
         };
         match keyboard.process(code) {
-            Some(Key::Character(c)) => {
-                if x + font::LINE / 2 > 480 {
-                    x = 170;
-                    y += font::LINE;
-                }
-                font::draw_char(x, y, c, 15);
-                x += font::LINE / 2;
-            }
-            Some(Key::Enter) => {
-                x = 170;
-                y += font::LINE;
-            }
-            Some(Key::Backspace) => {
-                if x <= 170 {
-                    y = (y - font::LINE).max(200);
-                    if y != 200 {
-                        x = 480 - font::LINE;
-                    }
-                } else {
-                    x -= font::LINE / 2;
-                }
-
-                graphics::rect(x, y, font::LINE, font::LINE, 1);
-            }
             Some(Key::F1) => {
                 graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
                 graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
@@ -96,7 +66,6 @@ pub extern "C" fn _start() -> ! {
                     continue;
                 }
                 font::draw_hex(10, 370, addr.unwrap() as u64, 15);
-                memory::draw_usage(490, 120);
             }
             Some(Key::F2) => {
                 if addr.is_none() {
@@ -110,7 +79,6 @@ pub extern "C" fn _start() -> ! {
                     continue;
                 }
                 addr = Some(addr.unwrap() - memory::PAGE_SIZE);
-                memory::draw_usage(490, 120);
             },
             Some(Key::F3) => start(user::hello), // Rust のアプリ
             Some(Key::F4) => start(user::bad),   // カーネルを覗こうとするアプリ
@@ -135,7 +103,6 @@ fn start(app: fn() -> u64) {
     } else {
         syscall::print_exit(code);
     }
-    memory::draw_usage(490, 120);
 }
 
 #[panic_handler]

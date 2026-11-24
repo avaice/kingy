@@ -1,4 +1,4 @@
-use crate::{font, graphics, io::outb, pic};
+use crate::{io::outb, memory, pic};
 
 const PIT_FREQ: u32 = 1_193_182; // PITは1秒に 1,193,182 回振動する
 const HZ: u32 = 1000; // 1秒に1000回タイマー発生
@@ -35,11 +35,8 @@ extern "C" fn timer_handler() {
         TICKS
     };
 
-    if ticks % 200 == 0 {
-        graphics::rect(10, 10, 35, 35, 3);
-        if ticks / 200 % 2 == 0 {
-            font::draw_text(10, 10, b".", 15);
-        }
+    if ticks % 1000 == 0 {
+        memory::draw_usage();
     }
     pic::end_of_interrupt();
 }
