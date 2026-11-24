@@ -11,6 +11,7 @@ mod exception;
 mod idt;
 mod pic;
 mod timer;
+mod memory;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -42,6 +43,9 @@ pub extern "C" fn _start() -> ! {
 
     font::draw_text(170, 130, b"Hello, Kingy!", 2);
     font::draw_text(170, 130 + font::LINE * 1, b"0123456789~!?", 15);
+
+    let mut addr = None;
+    memory::draw_usage(490, 120);
 
     let mut keyboard = Keyboard::new();
     let mut x = 170;
@@ -75,6 +79,33 @@ pub extern "C" fn _start() -> ! {
                 }
 
                 graphics::rect(x, y, font::LINE, font::LINE, 1);
+            }
+            Some(Key::F1) => {
+                graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
+                graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
+                let old_addr = addr;
+                addr = memory::alloc();
+                if addr.is_none() {
+                    font::draw_text(10, 370 + font::LINE, b"Memory allocation failed", graphics::color::RED);
+                    addr = old_addr;
+                    continue;
+                }
+                font::draw_hex(10, 370, addr.unwrap() as u64, 15);
+                memory::draw_usage(490, 120);
+            }
+            Some(Key::F2) => {
+                if addr.is_none() {
+                    continue;
+                }
+                graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
+                graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
+                addr = memory::free(addr.unwrap());
+                if addr.is_none() {
+                    font::draw_text(10, 370 + font::LINE, b"Memory free failed", graphics::color::RED);
+                    continue;
+                }
+                addr = Some(addr.unwrap() - memory::PAGE_SIZE);
+                memory::draw_usage(490, 120);
             }
             _ => {}
         }
