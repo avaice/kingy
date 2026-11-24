@@ -54,7 +54,7 @@ pub fn draw_usage() {
     graphics::rect(150, 0, 70, 40, graphics::color::GRAY);
     font::draw_text(150, 10, b"mem:", graphics::color::WHITE);
     for index in 0..PAGE_COUNT {
-        let color = if is_used(index) { graphics::color::GREEN } else { graphics::color::GRAY };
+        let color = if is_used(index) { graphics::color::GREEN } else { graphics::color::WHITE };
         graphics::rect(220 + index, 5, 1, 30, color);
     }
 }
