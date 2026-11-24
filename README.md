@@ -2,7 +2,7 @@
 
 自作OSを、、作るぞ
 
-<img width="500" height="400" alt="kingy screenshot" src="https://github.com/user-attachments/assets/4ce2d1ce-0e7f-4fa6-9edc-766a7c473c4c" />
+<img width="613" height="490" alt="image" src="https://github.com/user-attachments/assets/0cd563cc-a610-423a-b432-635b809be381" />
 
 ## requires
 ```bash
