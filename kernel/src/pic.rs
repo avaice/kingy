@@ -19,7 +19,7 @@ pub fn init() {
         outb(MASTER_DATA, 0x01);
         outb(SLAVE_DATA, 0x01);
         // ミュートするビットを1に
-        outb(MASTER_DATA, 0b1111_1110);
+        outb(MASTER_DATA, 0b1111_1100);
         outb(SLAVE_DATA, 0b1111_1111);
     }
 }

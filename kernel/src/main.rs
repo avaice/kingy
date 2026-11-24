@@ -31,7 +31,7 @@ pub extern "C" fn _start() -> ! {
         core::ptr::write_bytes(start, 0, end - start as usize);
     }
 
-    
+
     idt::init();
     pic::init();
     timer::init();
@@ -47,7 +47,11 @@ pub extern "C" fn _start() -> ! {
     let mut x = 170;
     let mut y = 200;
     loop {
-        match keyboard.poll() {
+        let Some(code) = keyboard::pop() else {
+            unsafe { core::arch::asm!("hlt") };
+            continue;
+        };
+        match keyboard.process(code) {
             Some(Key::Character(c)) => {
                 if x + font::LINE / 2 > 480 {
                     x = 170;

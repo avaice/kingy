@@ -49,6 +49,7 @@ pub fn init() {
         (*idt)[13] = Entry::new(crate::exception::general_protection as *const ());
         (*idt)[14] = Entry::new(crate::exception::page_fault as *const ());
         (*idt)[32] = Entry::new(crate::timer::timer_entry as *const ());
+        (*idt)[33] = Entry::new(crate::keyboard::keyboard_entry as *const ());
 
         let pointer = IdtPointer {
             limit: (core::mem::size_of::<[Entry; 256]>() - 1) as u16,

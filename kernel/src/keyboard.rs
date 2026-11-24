@@ -1,4 +1,4 @@
-use crate::{io, keymap};
+use crate::{io, keymap, pic};
 
 pub enum Key {
     Character(u8), // 値を持てる便利なenum
@@ -28,13 +28,7 @@ impl Keyboard {
             extended: false,
         }
     }
-    pub fn poll(&mut self) -> Option<Key> {
-        if unsafe { io::inb(0x64) } & 1 == 0 {
-            // 入力がない場合
-            return None;
-        }
-
-        let code = unsafe { io::inb(0x60) };
+    pub fn process(&mut self, code: u8) -> Option<Key> {
 
         // 拡張キー
         if code == 0xE0 {
@@ -87,4 +81,55 @@ impl Keyboard {
             }
         }
     }
+}
+
+const QUEUE_SIZE: usize = 64;
+static mut QUEUE: [u8; QUEUE_SIZE] = [0; QUEUE_SIZE];
+static mut HEAD: usize = 0; // 挿入する位置
+static mut TAIL: usize = 0; // 取り出す位置
+
+fn push(code: u8) {
+    unsafe {
+        let next = (HEAD + 1) % QUEUE_SIZE;
+        if next == TAIL {
+            return; // リングバッファが満杯なら入れない
+        }
+        QUEUE[HEAD] = code;
+        HEAD = next;
+    }
+}
+
+pub fn pop() -> Option<u8> {
+    unsafe {
+        core::arch::asm!("cli"); // 割り込みを禁止
+        let result = if TAIL == HEAD {
+            None
+        } else {
+            let code = QUEUE[TAIL];
+            TAIL = (TAIL + 1) % QUEUE_SIZE;
+            Some(code)
+        };
+        core::arch::asm!("sti"); // 割り込みを再開
+        result
+    }
+}
+
+#[unsafe(naked)]
+pub extern "C" fn keyboard_entry() {
+    core::arch::naked_asm!(
+        "push rax", "push rcx", "push rdx", "push rsi", "push rdi",
+        "push r8", "push r9", "push r10", "push r11",
+        "cld",
+        "call {handler}",
+        "pop r11", "pop r10", "pop r9", "pop r8",
+        "pop rdi", "pop rsi", "pop rdx", "pop rcx", "pop rax",
+        "iretq",
+        handler = sym keyboard_handler,
+    )
+}
+
+extern "C" fn keyboard_handler() {
+    let code = unsafe { io::inb(0x60) }; // キーボードから1バイト読む
+    push(code);                          // リングバッファに入れる
+    pic::end_of_interrupt();
 }
