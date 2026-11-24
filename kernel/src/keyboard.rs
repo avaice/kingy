@@ -9,6 +9,18 @@ pub enum Key {
     Down,
     Left,
     Right,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
 }
 
 pub struct Keyboard {
@@ -75,6 +87,18 @@ impl Keyboard {
             0x01 => Some(Key::Escape),
             0x1C => Some(Key::Enter),
             0x0E => Some(Key::Backspace),
+            0x3B => Some(Key::F1),
+            0x3C => Some(Key::F2),
+            0x3D => Some(Key::F3),
+            0x3E => Some(Key::F4),
+            0x3F => Some(Key::F5),
+            0x40 => Some(Key::F6),
+            0x41 => Some(Key::F7),
+            0x42 => Some(Key::F8),
+            0x43 => Some(Key::F9),
+            0x44 => Some(Key::F10),
+            0x57 => Some(Key::F11),
+            0x58 => Some(Key::F12),
             _ => {
                 let shift = self.left_shift || self.right_shift;
                 keymap::to_ascii(code, shift).map(Key::Character)
