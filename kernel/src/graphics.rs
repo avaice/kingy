@@ -3,6 +3,27 @@ pub const HEIGHT: usize = 480;
 
 const FB_ADDR: usize = 0x600;
 
+// VGAの色定義
+#[allow(dead_code)]
+pub mod color {
+    pub const BLACK: u8 = 0;
+    pub const BLUE: u8 = 1;
+    pub const GREEN: u8 = 2;
+    pub const CYAN: u8 = 3;
+    pub const RED: u8 = 4;
+    pub const MAGENTA: u8 = 5;
+    pub const BROWN: u8 = 6;
+    pub const LIGHT_GRAY: u8 = 7;
+    pub const GRAY: u8 = 8;
+    pub const LIGHT_BLUE: u8 = 9;
+    pub const LIGHT_GREEN: u8 = 10;
+    pub const LIGHT_CYAN: u8 = 11;
+    pub const LIGHT_RED: u8 = 12;
+    pub const LIGHT_MAGENTA: u8 = 13;
+    pub const YELLOW: u8 = 14;
+    pub const WHITE: u8 = 15;
+}
+
 // VRAMのアドレスを返す
 fn vram() -> usize {
     unsafe { core::ptr::read_volatile(FB_ADDR as *const u32) as usize }
