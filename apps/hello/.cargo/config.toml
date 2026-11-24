@@ -1,0 +1,10 @@
+[build]
+target = "x86_64-unknown-none"
+rustflags = [
+    "-C", "link-arg=-Tapp.ld",
+    # アプリは 512GB 番地（USER_BASE）に置くので、
+    # 「今の場所からの距離」で番地を計算するコードにしてもらう
+    "-C", "relocation-model=pic",
+    # 置く番地は決まっているので、どこにでも置ける形（PIE）にはしない
+    "-C", "link-arg=--no-pie",
+]

@@ -6,10 +6,23 @@ OBJCOPY="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/host: //p'
 cd "$(dirname "$0")"
 mkdir -p build
 
+# アプリをビルドする（カーネルが build/<名前>.bin を埋め込むので、カーネルより先にやる）
+for app in apps/*/; do
+    name="$(basename "$app")"
+    (cd "$app" && cargo build --release)
+    "$OBJCOPY" -O binary "$app/target/x86_64-unknown-none/release/$name" "build/$name.bin"
+done
+
 cd kernel
 cargo build --release
 "$OBJCOPY" -O binary target/x86_64-unknown-none/release/kernel ../build/kernel.bin
 cd ..
+
+kernel_size=$(wc -c < build/kernel.bin)
+if [ "$kernel_size" -gt 16384 ]; then
+    echo "error: build/kernel.bin が ${kernel_size} バイトあり、stage2 が読み込める 16384 バイトを超えています" >&2
+    exit 1
+fi
 
 nasm -f bin bootloader/boot.asm -o build/boot.bin
 nasm -f bin bootloader/stage2.asm -o build/stage2.bin
