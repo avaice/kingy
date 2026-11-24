@@ -44,10 +44,10 @@ pub fn free(addr: usize) -> Option<usize> {
     if addr < START || addr >= END || addr % PAGE_SIZE != 0 {
         return None; // 範囲外やページサイズがおかしいアドレスは無視
     }
-    set_used((addr - START) / PAGE_SIZE, false);
     if CLEAR_ON_FREE {
         clear_memory(addr);
     }
+    set_used((addr - START) / PAGE_SIZE, false);
     Some(addr)
 }
 
