@@ -1,4 +1,4 @@
-use crate::{font, graphics, keyboard, paging, pic, system_ui, user};
+use crate::{font, graphics, kbmp, keyboard, paging, pic, system_ui, user};
 
 // アプリからの「int 0x80」の入口
 #[unsafe(naked)]
@@ -7,11 +7,7 @@ pub extern "C" fn syscall_entry() {
         "push rax", "push rcx", "push rdx", "push rsi", "push rdi",
         "push r8", "push r9", "push r10", "push r11",
         "cld",
-        // アプリは rax=番号, rdi=引数1, rsi=引数2 で渡してくる
-        // Rustの関数は rdi=1番目, rsi=2番目, rdx=3番目 で受け取るので並べ替える
-        "mov rdx, rsi",
-        "mov rsi, rdi",
-        "mov rdi, rax",
+        "mov rdi, rsp",
         "call {handler}",
         "mov [rsp + 64], rax", // 戻り値を、退避してある rax の場所に上書きする
         "pop r11", "pop r10", "pop r9", "pop r8",
@@ -21,7 +17,25 @@ pub extern "C" fn syscall_entry() {
     )
 }
 
+#[repr(C)]
+struct Frame {
+    r11: u64,
+    r10: u64,
+    r9: u64,
+    r8: u64,
+    rdi: u64,
+    rsi: u64,
+    rdx: u64,
+    rcx: u64,
+    rax: u64,
+}
+
 const WRITE: u64 = 1;
+const PRINT: u64 = 2;
+const RECT: u64 = 3;
+const CLEAR: u64 = 4;
+const DRAW_KBMP: u64 = 5;
+const GET_KEY_CODE: u64 = 6;
 const EXIT: u64 = u64::MAX - 1;
 const ERROR: u64 = u64::MAX;
 const USER_END: u64 = 0x0000_8000_0000_0000; // アプリが使える番地の終わり
@@ -29,32 +43,99 @@ const USER_END: u64 = 0x0000_8000_0000_0000; // アプリが使える番地の�
 const TEXT_TOP: usize = 50;
 static mut TEXT_Y: usize = TEXT_TOP;
 
-extern "C" fn syscall_handler(number: u64, arg1: u64, arg2: u64) -> u64 {
-    match number {
-        WRITE => write(arg1, arg2),
-        EXIT => user::exit(arg1),
+// rax=番号, rdi, rsi, rdx, r10, r8, r9 = 引数1〜6
+extern "C" fn syscall_handler(frame: &Frame) -> u64 {
+    let args = [frame.rdi, frame.rsi, frame.rdx, frame.r10, frame.r8, frame.r9];
+    match frame.rax {
+        WRITE => write(args[0], args[1]),
+        PRINT => print(args[0], args[1], args[2], args[3], args[4]),
+        RECT => rect(args[0], args[1], args[2], args[3], args[4]),
+        CLEAR => clear_call_back(),
+        DRAW_KBMP => draw_kbmp(args[0], args[1], args[2], args[3], args[4], args[5]),
+        GET_KEY_CODE => get_key_code(),
+        EXIT => user::exit(args[0]),
         _ => ERROR, // 知らない番号
     }
 }
 
+fn user_slice(addr: u64, len: u64) -> Option<&'static [u8]> {
+    let end = addr.checked_add(len)?;
+    if addr < paging::USER_BASE as u64 || end > USER_END {
+        return None;
+    }
+    Some(unsafe { core::slice::from_raw_parts(addr as *const u8, len as usize) })
+}
+
+fn screen_pos(x: u64, y: u64) -> Option<(usize, usize)> {
+    if x >= graphics::WIDTH as u64 || y >= graphics::HEIGHT as u64 {
+        return None;
+    }
+    Some((x as usize, y as usize))
+}
+
 fn write(addr: u64, len: u64) -> u64 {
-    // 文字列がアプリの領域に収まっているか確かめる
-    let Some(end) = addr.checked_add(len) else {
-        return ERROR;
-    };
-    if addr < paging::USER_BASE as u64 || end > USER_END || len > 64 {
+    let y = unsafe { TEXT_Y } as u64;
+    let result = print(addr, len, 10, y, graphics::color::WHITE as u64);
+    if result != ERROR {
+        unsafe { TEXT_Y += font::LINE };
+    }
+    result
+}
+
+fn print(addr: u64, len: u64, x: u64, y: u64, color: u64) -> u64 {
+    if len > 64 {
         return ERROR;
     }
-    let text = unsafe { core::slice::from_raw_parts(addr as *const u8, len as usize) };
-    print(text, graphics::color::WHITE);
+    let Some(text) = user_slice(addr, len) else {
+        return ERROR;
+    };
+    let Some((x, y)) = screen_pos(x, y) else {
+        return ERROR;
+    };
+    font::draw_text(x, y, text, color as u8);
     0
 }
 
-// 文字を出す場所に1行書いて、次の行に進む
-pub fn print(text: &[u8], color: u8) {
-    unsafe {
-        font::draw_text(10, TEXT_Y, text, color);
-        TEXT_Y += font::LINE;
+fn rect(x: u64, y: u64, width: u64, height: u64, color: u64) -> u64 {
+    let Some((x, y)) = screen_pos(x, y) else {
+        return ERROR;
+    };
+    graphics::rect(x, y, width as usize, height as usize, color as u8);
+    0
+}
+
+fn clear_call_back() -> u64 {
+    clear();
+    0
+}
+
+const KBMP_HEADER: u64 = 8;
+const KBMP_MAX_SCALE: u64 = 16;
+
+fn draw_kbmp(addr: u64, len: u64, x: u64, y: u64, scale: u64, transparent: u64) -> u64 {
+    let Some(bytes) = user_slice(addr, len) else {
+        return ERROR;
+    };
+    if len < KBMP_HEADER || scale == 0 || scale > KBMP_MAX_SCALE {
+        return ERROR;
+    }
+    let Some((x, y)) = screen_pos(x, y) else {
+        return ERROR;
+    };
+    let kbmp = kbmp::read_kbmp(bytes);
+    // ヘッダに書かれた大きさの分だけ画素が揃っているか
+    let stride = (kbmp.width as usize + 1) / 2;
+    if kbmp.pixels.len() < stride * kbmp.height as usize {
+        return ERROR;
+    }
+    kbmp::draw_kbmp(kbmp, x, y, scale as usize, transparent != 0);
+    0
+}
+
+fn get_key_code() -> u64 {
+    match keyboard::pop() {
+        Some(code) => code as u64,
+        None => ERROR,
     }
 }
 
