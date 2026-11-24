@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kingy Bitmap Editor</title>
+<style>
+  :root {
+    --bg: #f4f4f1;
+    --panel: #ffffff;
+    --border: #d6d6d0;
+    --text: #1f1f1c;
+    --muted: #6b6b64;
+    --accent: #2f6fdb;
+    --accent-text: #ffffff;
+    --canvas-bg: #e6e6e0;
+    --danger: #c23b30;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1b1a;
+      --panel: #252524;
+      --border: #3a3a38;
+      --text: #ecece8;
+      --muted: #9a9a93;
+      --accent: #5b8ff0;
+      --accent-text: #0e0e0e;
+      --canvas-bg: #121211;
+      --danger: #ef6a5e;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Hiragino Sans", sans-serif;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0; font-size: 17px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: calc(100vh - 50px);
+  }
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  aside {
+    padding: 12px 16px;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+  section h2 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  label { display: inline-flex; gap: 4px; align-items: center; }
+  input[type=number] { width: 64px; }
+  input, select, button {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .tools button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .palette div { aspect-ratio: 1; cursor: pointer; }
+  .palette div.selected { outline: 2px solid var(--accent); outline-offset: -2px; box-shadow: inset 0 0 0 3px var(--panel); }
+  .current {
+    display: flex; gap: 8px; align-items: center; margin-top: 8px;
+  }
+  .swatch {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .hex {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    word-break: break-all;
+  }
+  main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .statusbar {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .stage {
+    flex: 1;
+    overflow: auto;
+    background: var(--canvas-bg);
+    padding: 24px;
+  }
+  #view {
+    display: block;
+    margin: auto;
+    image-rendering: pixelated;
+    cursor: crosshair;
+    touch-action: none;
+    box-shadow: 0 0 0 1px var(--border);
+  }
+  .msg { min-height: 1.5em; font-size: 12px; }
+  .msg.error { color: var(--danger); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kingy Bitmap Editor</h1>
+</header>
+
+<div class="layout">
+  <aside>
+    <section>
+      <h2>サイズ・色数</h2>
+      <div class="row">
+        <label>W <input id="w" type="number" min="1" max="255" value="16"></label>
+        <label>H <input id="h" type="number" min="1" max="255" value="16"></label>
+        <button id="resize">変更</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>色数
+          <select id="depth">
+            <option value="0">16色（4bit）</option>
+            <option value="1" selected>256色（8bit）</option>
+            <option value="2">65536色（16bit RGB565）</option>
+            <option value="3">1677万色（24bit RGB）</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>ツール</h2>
+      <div class="row tools">
+        <button data-tool="pen" class="active">ペン (P)</button>
+        <button data-tool="fill">塗りつぶし (F)</button>
+        <button data-tool="pick">スポイト (I)</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="undo">元に戻す</button>
+        <button id="redo">やり直す</button>
+        <button id="clear">全部消す</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>色</h2>
+      <div id="palette" class="palette"></div>
+      <div id="direct" class="row" hidden>
+        <input id="picker" type="color" value="#ffffff">
+      </div>
+      <div class="current">
+        <div id="swatch" class="swatch"></div>
+        <div>
+          <div id="colorLabel" class="mono"></div>
+          <div id="colorRgb" class="mono" style="color:var(--muted)"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>表示</h2>
+      <div class="row">
+        <label>拡大 <input id="zoom" type="range" min="1" max="40" value="20"></label>
+        <span id="zoomLabel" class="mono"></span>
+        <label><input id="grid" type="checkbox" checked> グリッド</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>ファイル</h2>
+      <div class="row">
+        <input id="name" type="text" value="bitmap" style="width:120px"><span class="mono">.kbmp</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="save" class="primary">保存</button>
+        <button id="open">開く</button>
+        <button id="copyRust">Rust の配列をコピー</button>
+        <input id="file" type="file" accept=".kbmp" hidden>
+      </div>
+      <div id="msg" class="msg"></div>
+      <div id="headerHex" class="hex mono"></div>
+      <div id="sizeInfo" class="hint"></div>
+    </section>
+  </aside>
+
+  <main>
+    <div class="statusbar">
+      <span id="pos" class="mono">x: -, y: -</span>
+      <span id="under" class="mono"></span>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="view"></canvas>
+    </div>
+  </main>
+</div>
+
+<script>
+// ---- パレット（QEMU の VBE 0x101 で 256 色を描いて撮った実測値） ----
+const PALETTE = (
+  "000000 0000a8 00a800 00a8a8 a80000 a800a8 a85700 a8a8a8 575757 5757ff 57ff57 57ffff ff5757 ff57ff ffff57 ffffff " +
+  "000000 171717 202020 2f2f2f 383838 474747 505050 606060 707070 808080 909090 a0a0a0 b7b7b7 c8c8c8 e0e0e0 ffffff " +
+  "0000ff 4000ff 7f00ff bf00ff ff00ff ff00bf ff007f ff0040 ff0000 ff4000 ff7f00 ffbf00 ffff00 bfff00 7fff00 40ff00 " +
+  "00ff00 00ff40 00ff7f 00ffbf 00ffff 00bfff 007fff 0040ff 7f7fff 9f7fff bf7fff df7fff ff7fff ff7fdf ff7fbf ff7f9f " +
+  "ff7f7f ff9f7f ffbf7f ffdf7f ffff7f dfff7f bfff7f 9fff7f 7fff7f 7fff9f 7fffbf 7fffdf 7fffff 7fdfff 7fbfff 7f9fff " +
+  "b7b7ff c7b7ff d8b7ff e8b7ff ffb7ff ffb7e8 ffb7d8 ffb7c7 ffb7b7 ffc7b7 ffd8b7 ffe8b7 ffffb7 e8ffb7 d8ffb7 c7ffb7 " +
+  "b7ffb7 b7ffc7 b7ffd8 b7ffe8 b7ffff b7e8ff b7d8ff b7c7ff 000070 1f0070 380070 570070 700070 700057 700038 70001f " +
+  "700000 701f00 703800 705700 707000 577000 387000 1f7000 007000 00701f 007038 007057 007070 005770 003870 001f70 " +
+  "383870 473870 573870 603870 703870 703860 703857 703847 703838 704738 705738 706038 707038 607038 577038 477038 " +
+  "387038 387047 387057 387060 387070 386070 385770 384770 505070 585070 605070 685070 705070 705068 705060 705058 " +
+  "705050 705850 706050 706850 707050 687050 607050 587050 507050 507058 507060 507068 507070 506870 506070 505870 " +
+  "000040 100040 200040 300040 400040 400030 400020 400010 400000 401000 402000 403000 404000 304000 204000 104000 " +
+  "004000 004010 004020 004030 004040 003040 002040 001040 202040 282040 302040 382040 402040 402038 402030 402028 " +
+  "402020 402820 403020 403820 404020 384020 304020 284020 204020 204028 204030 204038 204040 203840 203040 202840 " +
+  "2f2f40 302f40 372f40 3f2f40 402f40 402f3f 402f37 402f30 402f2f 40302f 40372f 403f2f 40402f 3f402f 37402f 30402f " +
+  "2f402f 2f4030 2f4037 2f403f 2f4040 2f3f40 2f3740 2f3040 000000 000000 000000 000000 000000 000000 000000 000000"
+).split(" ").map(h => parseInt(h, 16));
+
+const EGA_NAMES = ["BLACK", "BLUE", "GREEN", "CYAN", "RED", "MAGENTA", "BROWN", "LIGHT_GRAY",
+  "GRAY", "LIGHT_BLUE", "LIGHT_GREEN", "LIGHT_CYAN", "LIGHT_RED", "LIGHT_MAGENTA", "YELLOW", "WHITE"];
+
+const MODES = [
+  { name: "16色", palette: 16 },
+  { name: "256色", palette: 256 },
+  { name: "65536色", palette: 0 },
+  { name: "1677万色", palette: 0 },
+];
+const HEADER_SIZE = 8;
+const STORAGE_KEY = "kingy-bitmap-editor";
+
+// ---- 状態 ----
+// pixels には「今の色数での値」を入れる（パレット番号 / RGB565 / 0xRRGGBB）
+const state = {
+  w: 16, h: 16, depth: 1,
+  pixels: new Uint32Array(16 * 16),
+  color: 15,
+  tool: "pen",
+  zoom: 20,
+  grid: true,
+};
+const undoStack = [];
+const redoStack = [];
+
+// ---- 色の変換 ----
+const rgbOf = (r, g, b) => (r << 16) | (g << 8) | b;
+const splitRgb = c => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+const hex6 = c => c.toString(16).padStart(6, "0");
+
+function valueToRgb(depth, v) {
+  if (depth <= 1) return PALETTE[v];
+  if (depth === 2) {
+    const r = (v >> 11) & 31, g = (v >> 5) & 63, b = v & 31;
+    return rgbOf(Math.round(r * 255 / 31), Math.round(g * 255 / 63), Math.round(b * 255 / 31));
+  }
+  return v & 0xffffff;
+}
+
+function rgbToValue(depth, rgb) {
+  const [r, g, b] = splitRgb(rgb);
+  if (depth <= 1) {
+    // パレットの中で一番近い色（同じ距離なら若い番号）
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < MODES[depth].palette; i++) {
+      const [pr, pg, pb] = splitRgb(PALETTE[i]);
+      const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+  if (depth === 2) {
+    return (Math.round(r * 31 / 255) << 11) | (Math.round(g * 63 / 255) << 5) | Math.round(b * 31 / 255);
+  }
+  return rgb;
+}
+
+function colorLabel(depth, v) {
+  if (depth <= 1) return `#${v}` + (v < 16 ? ` (${EGA_NAMES[v]})` : "");
+  if (depth === 2) return `0x${v.toString(16).padStart(4, "0")} (RGB565)`;
+  return `0x${hex6(v)}`;
+}
+
+// ---- 描画 ----
+const view = document.getElementById("view");
+const ctx = view.getContext("2d");
+const offscreen = document.createElement("canvas");
+const offctx = offscreen.getContext("2d");
+
+function render() {
+  const { w, h, zoom, depth, pixels } = state;
+  offscreen.width = w;
+  offscreen.height = h;
+  const img = offctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const [r, g, b] = splitRgb(valueToRgb(depth, pixels[i]));
+    img.data[i * 4] = r;
+    img.data[i * 4 + 1] = g;
+    img.data[i * 4 + 2] = b;
+    img.data[i * 4 + 3] = 255;
+  }
+  offctx.putImageData(img, 0, 0);
+
+  view.width = w * zoom;
+  view.height = h * zoom;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(offscreen, 0, 0, w * zoom, h * zoom);
+
+  if (state.grid && zoom >= 4) {
+    ctx.strokeStyle = "rgba(128,128,128,0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 1; x < w; x++) { ctx.moveTo(x * zoom + 0.5, 0); ctx.lineTo(x * zoom + 0.5, h * zoom); }
+    for (let y = 1; y < h; y++) { ctx.moveTo(0, y * zoom + 0.5); ctx.lineTo(w * zoom, y * zoom + 0.5); }
+    ctx.stroke();
+  }
+  updateInfo();
+}
+
+function renderPalette() {
+  const el = document.getElementById("palette");
+  const n = MODES[state.depth].palette;
+  el.hidden = n === 0;
+  document.getElementById("direct").hidden = n !== 0;
+  el.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement("div");
+    d.style.background = "#" + hex6(PALETTE[i]);
+    d.title = colorLabel(state.depth, i);
+    if (i === state.color) d.className = "selected";
+    d.addEventListener("click", () => setColor(i));
+    el.appendChild(d);
+  }
+}
+
+function setColor(v) {
+  state.color = v;
+  const rgb = valueToRgb(state.depth, v);
+  document.getElementById("swatch").style.background = "#" + hex6(rgb);
+  document.getElementById("colorLabel").textContent = colorLabel(state.depth, v);
+  document.getElementById("colorRgb").textContent = "#" + hex6(rgb);
+  document.getElementById("picker").value = "#" + hex6(rgb);
+  document.querySelectorAll("#palette div").forEach((d, i) => d.classList.toggle("selected", i === v));
+  persist();
+}
+
+// ---- 編集 ----
+function snapshot() {
+  return { w: state.w, h: state.h, depth: state.depth, pixels: state.pixels.slice(), color: state.color };
+}
+function restore(s) {
+  Object.assign(state, { w: s.w, h: s.h, depth: s.depth, pixels: s.pixels.slice(), color: s.color });
+  syncControls();
+  renderPalette();
+  setColor(state.color);
+  render();
+}
+function pushUndo() {
+  undoStack.push(snapshot());
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack.length = 0;
+}
+function undo() { if (undoStack.length) { redoStack.push(snapshot()); restore(undoStack.pop()); persist(); } }
+function redo() { if (redoStack.length) { undoStack.push(snapshot()); restore(redoStack.pop()); persist(); } }
+
+function inside(x, y) { return x >= 0 && y >= 0 && x < state.w && y < state.h; }
+
+function plot(x, y) {
+  if (inside(x, y)) state.pixels[y * state.w + x] = state.color;
+}
+
+// 前の点から今の点まで線でつなぐ（速く動かしても途切れないように）
+function line(x0, y0, x1, y1) {
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    plot(x0, y0);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+function fill(x, y) {
+  const { w, h, pixels, color } = state;
+  const target = pixels[y * w + x];
+  if (target === color) return;
+  const stack = [[x, y]];
+  while (stack.length) {
+    const [px, py] = stack.pop();
+    if (px < 0 || py < 0 || px >= w || py >= h) continue;
+    const i = py * w + px;
+    if (pixels[i] !== target) continue;
+    pixels[i] = color;
+    stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
+  }
+}
+
+function resize(nw, nh) {
+  const old = state.pixels, ow = state.w, oh = state.h;
+  const next = new Uint32Array(nw * nh);
+  for (let y = 0; y < Math.min(oh, nh); y++)
+    for (let x = 0; x < Math.min(ow, nw); x++)
+      next[y * nw + x] = old[y * ow + x];
+  Object.assign(state, { w: nw, h: nh, pixels: next });
+}
+
+function changeDepth(depth) {
+  const from = state.depth;
+  const cache = new Map();
+  state.pixels = state.pixels.map(v => {
+    if (!cache.has(v)) cache.set(v, rgbToValue(depth, valueToRgb(from, v)));
+    return cache.get(v);
+  });
+  state.color = rgbToValue(depth, valueToRgb(from, state.color));
+  state.depth = depth;
+}
+
+// ---- マウス操作 ----
+let drawing = false;
+let last = null;
+
+function cellAt(e) {
+  const r = view.getBoundingClientRect();
+  return [Math.floor((e.clientX - r.left) / state.zoom), Math.floor((e.clientY - r.top) / state.zoom)];
+}
+
+view.addEventListener("contextmenu", e => e.preventDefault());
+view.addEventListener("pointerdown", e => {
+  const [x, y] = cellAt(e);
+  if (!inside(x, y)) return;
+  if (e.button === 2 || state.tool === "pick") {
+    setColor(state.pixels[y * state.w + x]);
+    return;
+  }
+  if (e.button !== 0) return;
+  pushUndo();
+  if (state.tool === "fill") {
+    fill(x, y);
+    render();
+    persist();
+    return;
+  }
+  drawing = true;
+  last = [x, y];
+  view.setPointerCapture(e.pointerId);
+  plot(x, y);
+  render();
+});
+view.addEventListener("pointermove", e => {
+  const [x, y] = cellAt(e);
+  showPos(x, y);
+  if (!drawing) return;
+  line(last[0], last[1], x, y);
+  last = [x, y];
+  render();
+});
+const endStroke = () => { if (drawing) { drawing = false; persist(); } };
+view.addEventListener("pointerup", endStroke);
+view.addEventListener("pointercancel", endStroke);
+view.addEventListener("pointerleave", () => { if (!drawing) showPos(-1, -1); });
+
+function showPos(x, y) {
+  const pos = document.getElementById("pos");
+  const under = document.getElementById("under");
+  if (!inside(x, y)) { pos.textContent = "x: -, y: -"; under.textContent = ""; return; }
+  pos.textContent = `x: ${x}, y: ${y}`;
+  under.textContent = colorLabel(state.depth, state.pixels[y * state.w + x]);
+}
+
+// ---- ファイル ----
+function rowBytes(depth, w) {
+  return [Math.ceil(w / 2), w, w * 2, w * 3][depth];
+}
+
+function encode() {
+  const { w, h, depth, pixels } = state;
+  const stride = rowBytes(depth, w);
+  const out = new Uint8Array(HEADER_SIZE + stride * h);
+  out[0] = depth & 0b11; // bit0〜1: 色数
+  out[1] = w;
+  out[2] = h;
+  // byte 3〜7 は予約（0）
+  for (let y = 0; y < h; y++) {
+    const row = HEADER_SIZE + y * stride;
+    for (let x = 0; x < w; x++) {
+      const v = pixels[y * w + x];
+      if (depth === 0) {
+        out[row + (x >> 1)] |= (x & 1) ? v : v << 4; // 上位4bit が左の画素
+      } else if (depth === 1) {
+        out[row + x] = v;
+      } else if (depth === 2) {
+        out[row + x * 2] = v & 0xff;          // リトルエンディアン
+        out[row + x * 2 + 1] = (v >> 8) & 0xff;
+      } else {
+        const [r, g, b] = splitRgb(v);
+        out[row + x * 3] = r;
+        out[row + x * 3 + 1] = g;
+        out[row + x * 3 + 2] = b;
+      }
+    }
+  }
+  return out;
+}
+
+function decode(bytes) {
+  if (bytes.length < HEADER_SIZE) throw new Error(`ヘッダー（${HEADER_SIZE}byte）より短いファイルです`);
+  const depth = bytes[0] & 0b11;
+  const w = bytes[1], h = bytes[2];
+  if (w === 0 || h === 0) throw new Error(`width か height が 0 です（${w}×${h}）`);
+  const stride = rowBytes(depth, w);
+  const need = HEADER_SIZE + stride * h;
+  if (bytes.length < need) throw new Error(`画素が足りません（${need}byte 必要なのに ${bytes.length}byte）`);
+  const pixels = new Uint32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const row = HEADER_SIZE + y * stride;
+    for (let x = 0; x < w; x++) {
+      let v;
+      if (depth === 0) v = (x & 1) ? bytes[row + (x >> 1)] & 0xf : bytes[row + (x >> 1)] >> 4;
+      else if (depth === 1) v = bytes[row + x];
+      else if (depth === 2) v = bytes[row + x * 2] | (bytes[row + x * 2 + 1] << 8);
+      else v = rgbOf(bytes[row + x * 3], bytes[row + x * 3 + 1], bytes[row + x * 3 + 2]);
+      pixels[y * w + x] = v;
+    }
+  }
+  return { w, h, depth, pixels, extra: bytes.length - need, flags: bytes[0] };
+}
+
+function fileName() {
+  const n = document.getElementById("name").value.trim().replace(/\.kbmp$/i, "");
+  return (n || "bitmap") + ".kbmp";
+}
+
+function message(text, error = false) {
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.className = "msg" + (error ? " error" : "");
+}
+
+document.getElementById("save").addEventListener("click", () => {
+  const blob = new Blob([encode()], { type: "application/octet-stream" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName();
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  message(`${fileName()} を保存しました`);
+});
+
+document.getElementById("open").addEventListener("click", () => document.getElementById("file").click());
+document.getElementById("file").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const d = decode(new Uint8Array(await f.arrayBuffer()));
+    pushUndo();
+    state.color = rgbToValue(d.depth, valueToRgb(state.depth, state.color)); // 選んでいた色を新しい色数に合わせる
+    Object.assign(state, { w: d.w, h: d.h, depth: d.depth, pixels: d.pixels });
+    document.getElementById("name").value = f.name.replace(/\.kbmp$/i, "");
+    syncControls();
+    renderPalette();
+    setColor(state.color);
+    render();
+    persist();
+    const notes = [];
+    if (d.flags & ~0b11) notes.push(`フラグの未使用 bit が立っています（0x${d.flags.toString(16)}）`);
+    if (d.extra) notes.push(`末尾に ${d.extra}byte 余分なデータがあります`);
+    message(`${f.name} を開きました` + (notes.length ? "。" + notes.join("。") : ""), notes.length > 0);
+  } catch (err) {
+    message(err.message, true);
+  }
+});
+
+document.getElementById("copyRust").addEventListener("click", async () => {
+  const bytes = encode();
+  const ident = fileName().replace(/\.kbmp$/, "").toUpperCase().replace(/[^A-Z0-9_]/g, "_").replace(/^(\d)/, "_$1");
+  const lines = [];
+  for (let i = 0; i < bytes.length; i += 16) {
+    lines.push("    " + Array.from(bytes.slice(i, i + 16), b => "0x" + b.toString(16).padStart(2, "0")).join(", ") + ",");
+  }
+  const text = `static ${ident}: [u8; ${bytes.length}] = [\n${lines.join("\n")}\n];\n`;
+  try {
+    await navigator.clipboard.writeText(text);
+    message("Rust の配列をクリップボードにコピーしました");
+  } catch {
+    message("クリップボードにコピーできませんでした", true);
+  }
+});
+
+function updateInfo() {
+  const bytes = encode();
+  document.getElementById("headerHex").textContent =
+    Array.from(bytes.slice(0, HEADER_SIZE), b => b.toString(16).padStart(2, "0")).join(" ");
+  document.getElementById("sizeInfo").textContent =
+    `${bytes.length} byte`;
+}
+
+// ---- 操作パネル ----
+function syncControls() {
+  document.getElementById("w").value = state.w;
+  document.getElementById("h").value = state.h;
+  document.getElementById("depth").value = state.depth;
+  document.getElementById("zoom").value = state.zoom;
+  document.getElementById("zoomLabel").textContent = `×${state.zoom}`;
+  document.getElementById("grid").checked = state.grid;
+  document.querySelectorAll(".tools button").forEach(b => b.classList.toggle("active", b.dataset.tool === state.tool));
+}
+
+function clampSize(v) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(255, Math.max(1, n)) : 1;
+}
+
+document.getElementById("resize").addEventListener("click", () => {
+  const nw = clampSize(document.getElementById("w").value);
+  const nh = clampSize(document.getElementById("h").value);
+  if (nw === state.w && nh === state.h) { syncControls(); return; }
+  pushUndo();
+  resize(nw, nh);
+  syncControls();
+  render();
+  persist();
+});
+["w", "h"].forEach(id => document.getElementById(id).addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("resize").click();
+}));
+
+document.getElementById("depth").addEventListener("change", e => {
+  pushUndo();
+  changeDepth(Number(e.target.value));
+  renderPalette();
+  setColor(state.color);
+  render();
+  persist();
+});
+
+document.getElementById("picker").addEventListener("input", e => {
+  setColor(rgbToValue(state.depth, parseInt(e.target.value.slice(1), 16)));
+});
+
+document.querySelectorAll(".tools button").forEach(b => b.addEventListener("click", () => {
+  state.tool = b.dataset.tool;
+  syncControls();
+}));
+
+document.getElementById("undo").addEventListener("click", undo);
+document.getElementById("redo").addEventListener("click", redo);
+document.getElementById("clear").addEventListener("click", () => {
+  pushUndo();
+  state.pixels.fill(0);
+  render();
+  persist();
+});
+
+document.getElementById("zoom").addEventListener("input", e => {
+  state.zoom = Number(e.target.value);
+  syncControls();
+  render();
+  persist();
+});
+document.getElementById("grid").addEventListener("change", e => {
+  state.grid = e.target.checked;
+  render();
+  persist();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input[type=text], input[type=number]")) return;
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    e.shiftKey ? redo() : undo();
+  } else if (mod && e.key.toLowerCase() === "y") {
+    e.preventDefault();
+    redo();
+  } else if (!mod) {
+    const tool = { p: "pen", f: "fill", i: "pick" }[e.key.toLowerCase()];
+    if (tool) { state.tool = tool; syncControls(); }
+  }
+});
+
+// ---- 作業中の絵をブラウザに残す（再読み込みしても消えないように） ----
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      w: state.w, h: state.h, depth: state.depth, color: state.color,
+      zoom: state.zoom, grid: state.grid, pixels: Array.from(state.pixels),
+      name: document.getElementById("name").value,
+    }));
+  } catch { /* 保存できなくても動く */ }
+}
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!s || s.pixels.length !== s.w * s.h) return;
+    Object.assign(state, {
+      w: s.w, h: s.h, depth: s.depth, color: s.color, zoom: s.zoom, grid: s.grid,
+      pixels: Uint32Array.from(s.pixels),
+    });
+    if (s.name) document.getElementById("name").value = s.name;
+  } catch { /* 読めなければ初期状態のまま */ }
+}
+
+load();
+syncControls();
+renderPalette();
+setColor(state.color);
+render();
+</script>
+</body>
+</html>

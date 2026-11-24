@@ -17,9 +17,11 @@ mod memory;
 mod paging;
 mod user;
 mod system_ui;
+mod kbmp;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
+
 
 unsafe extern "C" {
     static __bss_start: u8;
@@ -45,7 +47,7 @@ pub extern "C" fn _start() -> ! {
     unsafe { core::arch::asm!("sti") }; // 割り込みを受け付ける
 
     system_ui::draw_init_screen();
- 
+
     let mut addr = None;
 
     let mut keyboard = Keyboard::new();
