@@ -7,6 +7,7 @@ mod graphics;
 mod io;
 mod keyboard;
 mod keymap;
+mod idt;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -26,6 +27,9 @@ pub extern "C" fn _start() -> ! {
 
         core::ptr::write_bytes(start, 0, end - start as usize);
     }
+
+    
+    idt::init();
 
     graphics::clear(3);
     graphics::rect(160, 120, 320, 240, 1);
