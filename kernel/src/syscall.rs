@@ -1,4 +1,4 @@
-use crate::{font, paging};
+use crate::{font, graphics, paging, user};
 
 // アプリからの「int 0x80」の入口
 #[unsafe(naked)]
@@ -22,14 +22,17 @@ pub extern "C" fn syscall_entry() {
 }
 
 const WRITE: u64 = 1;
+const EXIT: u64 = u64::MAX - 1;
 const ERROR: u64 = u64::MAX;
 const USER_END: u64 = 0x0000_8000_0000_0000; // アプリが使える番地の終わり
 
-static mut TEXT_Y: usize = 370;
+const TEXT_TOP: usize = 365;
+static mut TEXT_Y: usize = TEXT_TOP;
 
 extern "C" fn syscall_handler(number: u64, arg1: u64, arg2: u64) -> u64 {
     match number {
         WRITE => write(arg1, arg2),
+        EXIT => user::exit(arg1),
         _ => ERROR, // 知らない番号
     }
 }
@@ -43,9 +46,29 @@ fn write(addr: u64, len: u64) -> u64 {
         return ERROR;
     }
     let text = unsafe { core::slice::from_raw_parts(addr as *const u8, len as usize) };
+    print(text, graphics::color::WHITE);
+    0
+}
+
+// 文字を出す場所に1行書いて、次の行に進む
+pub fn print(text: &[u8], color: u8) {
     unsafe {
-        font::draw_text(10, TEXT_Y, text, 15);
+        font::draw_text(10, TEXT_Y, text, color);
         TEXT_Y += font::LINE;
     }
-    0
+}
+
+// 終了コードを「exit 42」の形で1行書く
+pub fn print_exit(code: u64) {
+    unsafe {
+        font::draw_text(10, TEXT_Y, b"exit", graphics::color::YELLOW);
+        font::draw_number(10 + 16 * 5, TEXT_Y, code, graphics::color::YELLOW);
+        TEXT_Y += font::LINE;
+    }
+}
+
+// 文字を出す場所を消して、一番上に戻る
+pub fn clear() {
+    graphics::rect(0, TEXT_TOP, graphics::WIDTH, graphics::HEIGHT - TEXT_TOP, graphics::color::CYAN);
+    unsafe { TEXT_Y = TEXT_TOP };
 }

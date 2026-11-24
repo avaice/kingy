@@ -30,3 +30,18 @@ pub fn draw_hex(x: usize, y: usize, value: u64, color: u8) {
     }
     draw_text(x, y, &text, color);
 }
+
+// 数字を10進数で描く
+pub fn draw_number(x: usize, y: usize, mut value: u64, color: u8) {
+    let mut text = [0u8; 20];
+    let mut i = text.len();
+    loop {
+        i -= 1;
+        text[i] = b'0' + (value % 10) as u8;
+        value /= 10;
+        if value == 0 {
+            break;
+        }
+    }
+    draw_text(x, y, &text[i..], color);
+}

@@ -77,7 +77,34 @@ pub fn switch(pml4: usize) {
     unsafe { core::arch::asm!("mov cr3, {}", in(reg) pml4) };
 }
 
-// カーネルのアドレス空間を返す
+// カーネルのアドレス空間を解放する
 pub fn kernel_space() -> usize {
     unsafe { KERNEL_PML4 }
+}
+
+// アプリのアドレス空間と、そこに登録したページを全部解放する
+pub fn free_address_space(pml4: usize) {
+    for i in 1..512 { // 0行目はカーネルと共有しているので触らない
+        let entry = table(pml4)[i];
+        if entry & PRESENT != 0 {
+            free_table((entry & ADDR_MASK) as usize, 3);
+        }
+    }
+    memory::free(pml4);
+}
+
+// 表と、その下にあるものを全部解放する（level: PDPT = 3, PD = 2, PT = 1）
+fn free_table(addr: usize, level: u32) {
+    for i in 0..512 {
+        let entry = table(addr)[i];
+        if entry & PRESENT != 0 {
+            let next = (entry & ADDR_MASK) as usize;
+            if level == 1 {
+                memory::free(next); // PT の行の先は、アプリのページそのもの
+            } else {
+                free_table(next, level - 1); // 1段下の表へ
+            }
+        }
+    }
+    memory::free(addr); // 中身を全部解放してから、表そのものを解放する
 }

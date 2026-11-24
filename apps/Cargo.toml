@@ -1,0 +1,8 @@
+# Kingy のアプリをまとめたワークスペース
+[workspace]
+resolver = "3"
+members = ["kingy", "hello", "count"]
+
+[profile.release]
+panic = "abort" # パニックしたらその場で止まる
+opt-level = "z" # 速度よりサイズ圧縮を優先

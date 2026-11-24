@@ -1,4 +1,5 @@
 bootloader/
 kernel/
+apps/kingy/
 README.md
 AGENTS.md

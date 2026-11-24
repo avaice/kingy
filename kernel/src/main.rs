@@ -112,8 +112,9 @@ pub extern "C" fn _start() -> ! {
                 addr = Some(addr.unwrap() - memory::PAGE_SIZE);
                 memory::draw_usage(490, 120);
             },
-            Some(Key::F3) => user::hello(), // 正しいアプリ
-            Some(Key::F4) => user::bad(),   // カーネルを覗こうとするアプリ
+            Some(Key::F3) => start(user::hello), // Rust のアプリ
+            Some(Key::F4) => start(user::bad),   // カーネルを覗こうとするアプリ
+            Some(Key::F5) => start(user::count), // 3, 2, 1 と数えて終わる Rust のアプリ
             _ => {}
         }
     }
@@ -124,6 +125,18 @@ pub extern "C" fn _start() -> ! {
 //         unsafe { core::arch::asm!("hlt") }
 //     }
 // }
+
+
+fn start(app: fn() -> u64) {
+    syscall::clear();
+    let code = app();
+    if code == user::KILLED {
+        syscall::print(b"killed", graphics::color::RED);
+    } else {
+        syscall::print_exit(code);
+    }
+    memory::draw_usage(490, 120);
+}
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

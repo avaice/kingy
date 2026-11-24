@@ -7,10 +7,10 @@ cd "$(dirname "$0")"
 mkdir -p build
 
 # アプリをビルドする（カーネルが build/<名前>.bin を埋め込むので、カーネルより先にやる）
-for app in apps/*/; do
-    name="$(basename "$app")"
-    (cd "$app" && cargo build --release)
-    "$OBJCOPY" -O binary "$app/target/x86_64-unknown-none/release/$name" "build/$name.bin"
+(cd apps && cargo build --release)
+for main in apps/*/src/main.rs; do  # src/main.rs があるものがアプリ
+    name="$(basename "$(dirname "$(dirname "$main")")")"
+    "$OBJCOPY" -O binary "apps/target/x86_64-unknown-none/release/$name" "build/$name.bin"
 done
 
 cd kernel

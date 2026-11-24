@@ -5,6 +5,13 @@ const STACK_BOTTOM: usize = paging::USER_BASE + APP_SIZE + memory::PAGE_SIZE; //
 const STACK_SIZE: usize = 0x4000;                       // スタックの大きさ
 
 static HELLO: &[u8] = include_bytes!("../../build/hello.bin");
+static COUNT: &[u8] = include_bytes!("../../build/count.bin");
+
+// エラーで止められたときの終了コード
+pub const KILLED: u64 = u64::MAX;
+
+static mut APP_SPACE: usize = 0;  // 動いているアプリのアドレス空間
+static mut KERNEL_RSP: usize = 0; // アプリを起動したときのカーネルのスタック位置
 
 core::arch::global_asm!(
     // カーネルのメモリを読もうとする極悪アプリ
@@ -23,18 +30,22 @@ unsafe extern "C" {
     static bad_end: u8;
 }
 
-pub fn hello() -> ! {
+pub fn hello() -> u64 {
     run(HELLO)
 }
 
-pub fn bad() -> ! {
+pub fn count() -> u64 {
+    run(COUNT)
+}
+
+pub fn bad() -> u64 {
     let start = &raw const bad_start as usize;
     let end = &raw const bad_end as usize;
     run(unsafe { core::slice::from_raw_parts(start as *const u8, end - start) })
 }
 
 // アプリを起動する
-fn run(app: &[u8]) -> ! {
+fn run(app: &[u8]) -> u64 {
     if app.len() > APP_SIZE {
         panic!(); // アプリ用の領域に入りきらない
     }
@@ -50,27 +61,51 @@ fn run(app: &[u8]) -> ! {
     paging::switch(space);
     unsafe {
         core::ptr::copy_nonoverlapping(app.as_ptr(), paging::USER_BASE as *mut u8, app.len());
+        APP_SPACE = space;
     }
 
-    enter_user(paging::USER_BASE, STACK_BOTTOM + STACK_SIZE)
+    let code = enter_user(paging::USER_BASE, STACK_BOTTOM + STACK_SIZE);
+
+    unsafe { core::arch::asm!("sti") }; // システムコールやエラーの中から戻ってくるので、割り込みが止まっている
+    code
 }
 
-// Ring3 に降りて、entry 番地から実行を始める
-fn enter_user(entry: usize, stack: usize) -> ! {
+// Ring3 に降りて、entry 番地から実行を始める。アプリが終わると、終了コードを持って戻ってくる
+#[unsafe(naked)]
+extern "C" fn enter_user(entry: usize, stack: usize) -> u64 {
+    core::arch::naked_asm!(
+        // あとで戻ってこられるように、スタックの位置を保存する
+        "push rbp", "push rbx", "push r12", "push r13", "push r14", "push r15",
+        "mov [rip + {saved}], rsp",
+        // iretq が取り出す5つを積んで、Ring3 に降りる
+        "push {ss}",     // スタックの番号（Ring3）
+        "push rsi",      // スタックの番地（2番目の引数 stack）
+        "push 0x202",    // フラグ（割り込み有効）
+        "push {cs}",     // コードの番号（Ring3）
+        "push rdi",      // 実行を始める番地（1番目の引数 entry）
+        "iretq",
+        saved = sym KERNEL_RSP,
+        ss = const gdt::USER_DATA | 3,
+        cs = const gdt::USER_CODE | 3,
+    )
+}
+
+// アプリを終わらせて、enter_user を呼んだ場所に戻る（exit システムコールや、アプリのエラーから呼ばれる）
+pub fn exit(code: u64) -> ! {
     unsafe {
-        core::arch::asm!(
-            "push {ss}",     // スタックの番号（Ring3）
-            "push {rsp}",    // スタックの番地
-            "push {rflags}", // フラグ（割り込み有効）
-            "push {cs}",     // コードの番号（Ring3）
-            "push {rip}",    // 実行を始める番地
-            "iretq",
-            ss = in(reg) (gdt::USER_DATA | 3) as u64,
-            rsp = in(reg) stack,
-            rflags = in(reg) 0x202u64,
-            cs = in(reg) (gdt::USER_CODE | 3) as u64,
-            rip = in(reg) entry,
-            options(noreturn),
-        )
+        paging::switch(paging::kernel_space()); // 解放するアドレス空間を使ったままにしない
+        paging::free_address_space(APP_SPACE);  // アプリが使っていたメモリを全部解放する
+        return_to_kernel(code, KERNEL_RSP)
     }
+}
+
+// 保存しておいたスタックに戻ってレジスタを取り出し、enter_user から戻る
+#[unsafe(naked)]
+extern "C" fn return_to_kernel(code: u64, rsp: usize) -> ! {
+    core::arch::naked_asm!(
+        "mov rax, rdi", // 戻り値 = 終了コード
+        "mov rsp, rsi", // enter_user で保存したスタックの位置に戻る
+        "pop r15", "pop r14", "pop r13", "pop r12", "pop rbx", "pop rbp",
+        "ret",          // enter_user を呼んだ場所（run の中）に戻る
+    )
 }
