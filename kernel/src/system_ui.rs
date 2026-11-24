@@ -12,7 +12,7 @@ pub fn draw_init_screen() {
 }
 
 pub fn draw_status_bar(){
-    graphics::rect(0, 0, 640, 40, graphics::color::BLACK);
+    graphics::rect(0, 0, 640, 40, graphics::color::GRAY);
     font::draw_text(10, 10, b"KingyOS", graphics::color::WHITE);
     memory::draw_usage();
 }

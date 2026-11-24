@@ -1,4 +1,4 @@
-use crate::{font, graphics, paging, user};
+use crate::{font, graphics, paging, system_ui, user};
 
 // アプリからの「int 0x80」の入口
 #[unsafe(naked)]
@@ -69,6 +69,7 @@ pub fn print_exit(code: u64) {
 
 // 文字を出す場所を消して、一番上に戻る
 pub fn clear() {
-    graphics::rect(0, TEXT_TOP, graphics::WIDTH, graphics::HEIGHT - TEXT_TOP, graphics::color::CYAN);
+    graphics::clear(graphics::color::BLACK);
+    system_ui::draw_status_bar();
     unsafe { TEXT_Y = TEXT_TOP };
 }

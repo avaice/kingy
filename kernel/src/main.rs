@@ -98,6 +98,7 @@ pub extern "C" fn _start() -> ! {
 fn start(app: fn() -> u64) {
     syscall::clear();
     let code = app();
+    system_ui::draw_init_screen();
     if code == user::KILLED {
         syscall::print(b"killed", graphics::color::RED);
     } else {
