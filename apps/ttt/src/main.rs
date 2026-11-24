@@ -113,9 +113,9 @@ fn draw_board(x: usize, y: usize,  board: [usize; 9]) {
 
 fn draw_cell(x: usize, y: usize, board_type: usize, cursor: bool) {
     if cursor {
-        rect(170 + x as u64 * 100, 100 + y as u64 * 100, 100, 100, 7);
+        rect(170 + x as u64 * 100, 80 + y as u64 * 100, 100, 100, 7);
     }else{
-        rect(170 + x as u64 * 100, 100 + y as u64 * 100, 100, 100, 15);
+        rect(170 + x as u64 * 100, 80 + y as u64 * 100, 100, 100, 15);
     }
     if board_type == 0 {
         return;
@@ -125,7 +125,7 @@ fn draw_cell(x: usize, y: usize, board_type: usize, cursor: bool) {
     } else {
         BATSU_BMP
     };
-    draw_kbmp(kbmp, 170 + x as u64 * 100, 100 + y as u64 * 100, 6, true);
+    draw_kbmp(kbmp, 170 + x as u64 * 100, 80 + y as u64 * 100, 6, true);
 }
 
 

@@ -40,7 +40,10 @@ const EXIT: u64 = u64::MAX - 1;
 const ERROR: u64 = u64::MAX;
 const USER_END: u64 = 0x0000_8000_0000_0000; // アプリが使える番地の終わり
 
-const TEXT_TOP: usize = 50;
+const APP_DISPLAY_AREA_START_X: usize = 0;
+const APP_DISPLAY_AREA_START_Y: usize = 40;
+
+const TEXT_TOP: usize = 10;
 static mut TEXT_Y: usize = TEXT_TOP;
 
 // rax=番号, rdi, rsi, rdx, r10, r8, r9 = 引数1〜6
@@ -70,7 +73,7 @@ fn screen_pos(x: u64, y: u64) -> Option<(usize, usize)> {
     if x >= graphics::WIDTH as u64 || y >= graphics::HEIGHT as u64 {
         return None;
     }
-    Some((x as usize, y as usize))
+    Some((x as usize + APP_DISPLAY_AREA_START_X, y as usize + APP_DISPLAY_AREA_START_Y))
 }
 
 fn write(addr: u64, len: u64) -> u64 {
@@ -111,6 +114,8 @@ fn clear_call_back() -> u64 {
 
 const KBMP_HEADER: u64 = 8;
 const KBMP_MAX_SCALE: u64 = 16;
+
+
 
 fn draw_kbmp(addr: u64, len: u64, x: u64, y: u64, scale: u64, transparent: u64) -> u64 {
     let Some(bytes) = user_slice(addr, len) else {

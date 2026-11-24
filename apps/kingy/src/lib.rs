@@ -69,8 +69,8 @@ pub fn exit(code: u64) -> ! {
 }
 
 pub fn pause() -> ! {
-    rect(10, 440, 300, 30, 15);
-    print(b"[ESC] to continue..", 10, 445, 0);
+    rect(10, 400, 300, 30, 15);
+    print(b"[ESC] to continue..", 10, 405, 0);
     loop{
         if let Some(code) = get_key_code() {
             if code == 0x01 {
