@@ -18,6 +18,7 @@ mod paging;
 mod user;
 mod system_ui;
 mod kbmp;
+mod launcher;
 
 use core::panic::PanicInfo;
 use keyboard::{Key, Keyboard};
@@ -48,7 +49,7 @@ pub extern "C" fn _start() -> ! {
 
     system_ui::draw_init_screen();
 
-    let mut addr = None;
+    // let mut addr = None;
 
     let mut keyboard = Keyboard::new();
     loop {
@@ -57,35 +58,36 @@ pub extern "C" fn _start() -> ! {
             continue;
         };
         match keyboard.process(code) {
-            Some(Key::F1) => {
-                graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
-                graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
-                let old_addr = addr;
-                addr = memory::alloc();
-                if addr.is_none() {
-                    font::draw_text(10, 370 + font::LINE, b"Memory allocation failed", graphics::color::RED);
-                    addr = old_addr;
-                    continue;
-                }
-                font::draw_hex(10, 370, addr.unwrap() as u64, 15);
+            // Some(Key::F1) => {
+            //     graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
+            //     graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
+            //     let old_addr = addr;
+            //     addr = memory::alloc();
+            //     if addr.is_none() {
+            //         font::draw_text(10, 370 + font::LINE, b"Memory allocation failed", graphics::color::RED);
+            //         addr = old_addr;
+            //         continue;
+            //     }
+            //     font::draw_hex(10, 370, addr.unwrap() as u64, 15);
+            // }
+            // Some(Key::F2) => {
+            //     if addr.is_none() {
+            //         continue;
+            //     }
+            //     graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
+            //     graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
+            //     addr = memory::free(addr.unwrap());
+            //     if addr.is_none() {
+            //         font::draw_text(10, 370 + font::LINE, b"Memory free failed", graphics::color::RED);
+            //         continue;
+            //     }
+            //     addr = Some(addr.unwrap() - memory::PAGE_SIZE);
+            // },
+            Some(Key::Up) => launcher::up(),
+            Some(Key::Down) => launcher::down(),
+            Some(Key::Enter) => {
+                launcher::select();
             }
-            Some(Key::F2) => {
-                if addr.is_none() {
-                    continue;
-                }
-                graphics::rect(10, 370, 480, font::LINE, graphics::color::CYAN);
-                graphics::rect(10, 370 + font::LINE, 480, font::LINE, graphics::color::CYAN);
-                addr = memory::free(addr.unwrap());
-                if addr.is_none() {
-                    font::draw_text(10, 370 + font::LINE, b"Memory free failed", graphics::color::RED);
-                    continue;
-                }
-                addr = Some(addr.unwrap() - memory::PAGE_SIZE);
-            },
-            Some(Key::F3) => start(user::hello), // Rust のアプリ
-            Some(Key::F4) => start(user::bad),   // カーネルを覗こうとするアプリ
-            Some(Key::F5) => start(user::count), // 3, 2, 1 と数えて終わる Rust のアプリ
-            Some(Key::F6) => start(user::ttt), // 三目並べ
             _ => {}
         }
     }
@@ -96,20 +98,6 @@ pub extern "C" fn _start() -> ! {
 //         unsafe { core::arch::asm!("hlt") }
 //     }
 // }
-
-
-fn start(app: fn() -> u64) {
-    syscall::clear();
-    let code = app();
-    if code == user::KILLED || code == user::PANIC {
-        syscall::crushed(code);
-        system_ui::draw_init_screen();
-    } else {
-        system_ui::draw_init_screen();
-        syscall::print_exit(code);
-    }
-    
-}
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
