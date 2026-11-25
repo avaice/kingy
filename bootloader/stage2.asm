@@ -53,6 +53,17 @@ start:
     cmp ax, 0x004F
     jne halt
 
+    mov ax, 0x2401          ; A20ゲートを有効にする
+    int 0x15
+    jnc .a20_done           ; 成功ならFast A20は飛ばす
+
+    in  al, 0x92            ; ダメならFast A20
+    or  al, 0x02            ; bit1 = A20を有効にする
+    and al, 0xFE            ; bit0 = リセットなので必ず0にする
+    out 0x92, al
+
+.a20_done:
+
     cli
     lgdt [gdt_descriptor]                           ; GDTの場所と大きさをCPUに伝える
     mov eax, cr0                                    ; cr0の値を取得する
