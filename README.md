@@ -2,7 +2,7 @@
 
 自作OSを、、作るぞ
 
-<img width="613" height="490" alt="image" src="https://github.com/user-attachments/assets/0cd563cc-a610-423a-b432-635b809be381" />
+<img width="７７９" height="587" alt="718803380-7ce48c3a-f5cc-4a49-adb6-b73233d1d874" src="https://github.com/user-attachments/assets/12f7b088-0a3a-46af-820e-2daddba1c705" />
 
 ## requires
 ```bash
